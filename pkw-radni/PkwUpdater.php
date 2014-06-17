@@ -42,7 +42,7 @@ class PkwUpdater
         $parser = new PkwParser();
 
         // iteruj po oznaczonych
-        while($gmina = $this->DB->selectAssoc("SELECT id, teryt  FROM pl_gminy WHERE updater_pkw_radni_status='1' ORDER BY updater_pkw_radni_last_success ASC LIMIT 1") ) {
+        while($gmina = $this->DB->selectAssoc("SELECT id, teryt  FROM pl_gminy WHERE updater_pkw_radni_status='0' ORDER BY updater_pkw_radni_last_success ASC LIMIT 1") ) {
             echo ">> UPDATE pl_gminy SET updater_pkw_radni_status = 2 WHERE id = " . $gmina['id'] . "\n";
 //            if (!$this->DB->query("UPDATE pl_gminy SET updater_pkw_radni_status = 2 WHERE id = " . $gmina['id'])) {
 //                exit(-1);
@@ -50,7 +50,8 @@ class PkwUpdater
 
             $ret = $parser->parse_gmina_teryt($gmina['teryt']);
 
-            echo "Updating " . $ret['name'] . "\n";
+          echo var_export($ret);  
+	  echo "Updating " . $ret['name'] . "\n";
 
             $rada = &array_find($ret['sections'], function($s) {return strpos($s['type'], 'rada') === 0; });
             foreach($rada['subsections'] as $okreg_data) {

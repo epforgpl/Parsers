@@ -3,6 +3,9 @@
 require_once('simple_html_dom.php');
 
 function &array_find(&$arr, $func) {
+    if (!is_array($arr)) {
+	throw new Exception("Not an array: $arr");
+    }
     foreach($arr as $key => $value) {
         if ($func($value)) {
             return $arr[$key];
@@ -208,7 +211,7 @@ class PkwParser
     function parse_gmina_teryt($teryt_gminy) {
         $teryt_woj = substr($teryt_gminy, 0, 2) . '0000';
 
-        return parse_gmina($this->$baseUrl . $teryt_woj . '/' . $teryt_gminy . '.html');
+        return $this->parse_gmina($this->baseUrl . $teryt_woj . '/' . $teryt_gminy . '.html');
     }
 
     function parse_powiat($url) {
@@ -271,10 +274,10 @@ class PkwParser
     }
 }
 
-$ret =   PkwParser::parse_wojewodztwo("http://www.kadencja.pkw.gov.pl/obs/pl/120000/120000.html");
+//$ret =   PkwParser::parse_wojewodztwo("http://www.kadencja.pkw.gov.pl/obs/pl/120000/120000.html");
 //$ret = PkwParser::parse_gmina("http://www.kadencja.pkw.gov.pl/obs/pl/120000/126101.html");
 
-var_export($ret);
+//var_export($ret);
 
 //PkwParser::parse_kraj();
 
