@@ -4,14 +4,15 @@ require_once('simple_html_dom.php');
 
 function &array_find(&$arr, $func) {
     if (!is_array($arr)) {
-	throw new Exception("Not an array: $arr");
+	    throw new Exception("Not an array: $arr");
     }
     foreach($arr as $key => $value) {
         if ($func($value)) {
             return $arr[$key];
         }
     }
-    return null;
+    $null_notice_hack = null;
+    return $null_notice_hack;
 }
 
 
@@ -36,7 +37,8 @@ class PkwParser
         'rada m.st.',
         'rada dzielnicy',
         'prezydent',
-        'wójt'
+        'wójt',
+        'burmistrz'
     );
 
     private $type_subsection = array(
@@ -76,7 +78,7 @@ class PkwParser
         foreach ($html->find('.obs_bkg') as $section) {
             $s = array();
             $s['name'] = $this->text($section->find('> h2.title', 0));
-            $s['type'] = $this->pkw_map_type($this->$type_instytucje, $s['name']);
+            $s['type'] = $this->pkw_map_type($this->type_instytucje, $s['name']);
             $s['subsections'] = array();
 
             foreach ($section->find('.consts') as $subsection) {
@@ -85,7 +87,7 @@ class PkwParser
                 if ($ss['name'] != null) {
                     if (preg_match('/(\d+)$/', $ss['name'], $okreg_parsed))
                         $ss['okreg_num'] = $okreg_parsed[1];
-                    $ss['type'] = $this->pkw_map_type($this->$type_subsection, $ss['name']);
+                    $ss['type'] = $this->pkw_map_type($this->type_subsection, $ss['name']);
                 }
                 $ss['people'] = array();
 
@@ -192,7 +194,6 @@ class PkwParser
         if (!preg_match('/\/(\d+)\/(\d+)\.htm(l)?/', $url, $matches)) {
             throw new Exception("incorrect url");
         }
-        return;
 
         $teryt_wojewodztwa = $matches[1];
         $teryt_gminy = $matches[2];
