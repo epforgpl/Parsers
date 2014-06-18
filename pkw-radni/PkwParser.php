@@ -38,6 +38,7 @@ class PkwParser
         'rada dzielnicy',
         'prezydent',
         'wójt',
+        'wót', // http://www.kadencja.pkw.gov.pl/obs/pl/200000/200103.html
         'burmistrz',
         'bumistrz'
     );
