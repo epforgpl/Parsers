@@ -1,7 +1,7 @@
 <?php
 
 require_once("PkwParser.php");
-require_once('../db.php');
+require_once(dirname(__FILE__) . '/../db.php');
 
 error_reporting(E_ALL & ~E_NOTICE & ~E_STRICT & ~E_DEPRECATED);
 
@@ -71,13 +71,20 @@ class PkwUpdater
                 exit(-1);
             }
 
-            $ret = $parser->parse_gmina_teryt($gmina['teryt']);
+            $gmina_status = '3';
+            try {
+                $ret = $parser->parse_gmina_teryt($gmina['teryt']);
 
+            } catch(Exception $ex) {
+                echo "ERR: Parser err: " . $ex->getMessage() . "\n";
+                $gmina_status = '5';
+            }
+
+            if ($gmina_status == '3') {
 	        echo "Updating " . $ret['name'] . "\n";
 
             $rada = &array_find($ret['sections'], function($s) {return strpos($s['type'], 'rada') === 0; });
             $pkw_radni_gminy_count = 0;
-            $gmina_status = '3';
 
             foreach($rada['subsections'] as $okreg_data) {
                 $sql = "SELECT * FROM pkw_okregi WHERE kod_terytorialny = " . $this->quote($gmina['teryt']) . ' AND nr_okregu = ' . $this->quote($okreg_data['okreg_num']);
@@ -195,6 +202,8 @@ class PkwUpdater
                 echo "     Porownaj: SELECT g.nazwa, o.nr_okregu, r.nazwa_rev, r.* FROM epf.pl_gminy_radni r INNER JOIN pl_gminy g ON (r.gmina_id = g.id) INNER JOIN epf.pkw_okregi o ON (r.okreg_id = o.id) INNER JOIN epf.pkw_komitety k ON (r.komitet_id = k.id) WHERE gmina_id = ".$gmina['id']." AND wybrany = '1' ORDER BY o.nr_okregu, nazwisko;\n";
                 echo "     Porownaj: ".$ret['url']."\n";
                 $gmina_status = '4';
+            }
+                // koniec przetwarzania sparsowanych tresci
             }
 
             // przetworzono gmine, 3 = OK, 4 - alert sprawdz

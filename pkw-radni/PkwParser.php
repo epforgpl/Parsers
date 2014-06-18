@@ -38,7 +38,8 @@ class PkwParser
         'rada dzielnicy',
         'prezydent',
         'wójt',
-        'burmistrz'
+        'burmistrz',
+        'bumistrz'
     );
 
     private $type_subsection = array(
