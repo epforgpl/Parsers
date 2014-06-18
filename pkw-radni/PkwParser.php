@@ -157,6 +157,7 @@ class PkwParser
                 $person_found = &array_find($okreg['people'], function($p) use($nazwisko_imie) { return $p['name'] == $nazwisko_imie;});
                 if ($person_found) {
                     // więcej danych nt. ostatniego nie ma
+                    // TODO chyba, ze byli wybierani wielokrotnie http://www.kadencja.pkw.gov.pl/obs/pl/140000/140503.html
 
                 } else {
                     // dodajemy innych
@@ -206,7 +207,7 @@ class PkwParser
 
         // TODO dodanie zmian z aktualnych wyborów uzupełniających (moze nie tylko do gmin)
 
-        return array_merge($data, compact('teryt_wojewodztwa', 'teryt_gminy', 'name'));
+        return array_merge($data, compact('teryt_wojewodztwa', 'teryt_gminy', 'name', 'url'));
     }
 
     function parse_gmina_teryt($teryt_gminy) {

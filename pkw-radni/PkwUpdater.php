@@ -65,7 +65,7 @@ class PkwUpdater
 
         // iteruj po oznaczonych
         while($gmina = $this->DB->selectAssoc("SELECT id, teryt  FROM pl_gminy WHERE updater_pkw_radni_status='1' ORDER BY updater_pkw_radni_last_success ASC LIMIT 1") ) {
-            $sql = "UPDATE pl_gminy SET updater_pkw_radni_status = 2 WHERE id = " . $gmina['id'];
+            $sql = "UPDATE pl_gminy SET updater_pkw_radni_status = '2' WHERE id = " . $gmina['id'];
             echo $sql . "\n";
             if (!$this->DB->query($sql)) {
                 exit(-1);
@@ -73,39 +73,59 @@ class PkwUpdater
 
             $ret = $parser->parse_gmina_teryt($gmina['teryt']);
 
-
 	        echo "Updating " . $ret['name'] . "\n";
 
             $rada = &array_find($ret['sections'], function($s) {return strpos($s['type'], 'rada') === 0; });
+            $pkw_radni_gminy_count = 0;
+            $gmina_status = '3';
+
             foreach($rada['subsections'] as $okreg_data) {
-                $okreg = $this->DB->selectAssoc("SELECT * FROM pkw_okregi WHERE kod_terytorialny = " . $this->quote($gmina['teryt']) . ' AND nr_okregu = ' . $this->quote($okreg_data['okreg_num']));
+                $sql = "SELECT * FROM pkw_okregi WHERE kod_terytorialny = " . $this->quote($gmina['teryt']) . ' AND nr_okregu = ' . $this->quote($okreg_data['okreg_num']);
+                $okreg = $this->DB->selectAssoc($sql);
+
+                if (!$okreg) {
+                    throw new Exception("Nie znaleziono okregu: $sql");
+                }
 
                 foreach($okreg_data['people'] AS $radny_data) {
                     if ($radny_data['name'] == 'Mandat nieobsadzony') {
                         continue;
                     }
 
+                    if ($radny_data['rezygnacja_data'] == null) {
+                        $pkw_radni_gminy_count++;
+                    }
+
                     $radny = $this->DB->selectAssoc("SELECT * FROM pl_gminy_radni WHERE nazwa_rev = " . $this->quote($radny_data['name']));
 
                     if (!$radny) {
                         // doszedl w uzupelniajacych najprawdopodobniej
-                        $komitet_id = $this->DB->selectValue("SELECT id FROM pkw_komitety WHERE skrot_nazwy = " . $this->quote($radny_data['komitet']));
-                        if ($komitet_id === false) {
-                            throw new Exception("Nie znaleziono komitetu pkw_komitety.skrot_nazwy = " . $radny_data['komitet']);
+                        $komitet_id = $this->DB->selectValue("SELECT id FROM pkw_komitety WHERE pkw_skrot_nazwy = " . $this->quote($radny_data['komitet']));
+                        if ($komitet_id === false || $komitet_id === null) {
+                            echo "ERR: Nie znaleziono komitetu pkw_komitety.skrot_nazwy = " . $radny_data['komitet'] . ". Wstawiam dummy (do uzupelnienia pozniej przez wybory_uzupelniajace_link)\n";
+                            $sql = "INSERT INTO pkw_komitety (skrot_nazwy) VALUES (".$this->quote($radny_data['komitet']).");";
+                            $gmina_status = '4';
+
+                            echo $sql . "\n";
+                            if (!$this->DB->query($sql)) {
+                                exit(-2);
+                            }
+                            $komitet_id = $this->DB->insert_id;
                         }
 
                         $radny_name = explode(" ", $radny_data['name']);
                         $imiona = implode(" ", array_slice($radny_name, 1));
                         $insert_data = array(
                             'src' => 'wybory_uzupelniajace',
+                            'src_id' => hexdec(substr(sha1('' . $gmina['id'] . $radny_data['name']),0, 8)), // UNIQUE: src && src_id
                             'wybory_uzupelniajace_link' => $radny_data['wybranie_akcja_wyborcza_link'],
-                            'gmina_id' => $radny_data['wybranie_akcja_wyborcza_link'],
+                            'gmina_id' => $gmina['id'],
                             'okreg_id' => $okreg['id'],
                             'komitet_id' => $komitet_id,
                             'nazwisko' => $radny_name[0],
                             'imiona' => $imiona,
                             'nazwa' => $imiona . ' ' . $radny_name[0],
-                            'nazwa_rev' => $radny_name[0] . ' ' . $imiona,
+                            'nazwa_rev' => $radny_data['name'],
                             'wybranie_data' => $radny_data['wybranie_data'],
                             'wybranie_przyczyna' => $radny_data['wybranie_akcja_wyborcza'],
                             'rezygnacja_data' => $radny_data['rezygnacja_data'],
@@ -127,14 +147,18 @@ class PkwUpdater
                         $update = false;
                         if ($radny_data['wybranie_data'] != $wybranie_data) {
                             if ($wybranie_data != null) {
-                                throw new Exception("Uwaga: nadpisalibysmy date wybrania posla " . $radny_data['name'] . ' wartoscia ' . $radny_data['wybranie_data']);
+                                echo "ERR-pomijam: Uwaga: nadpisalibysmy date wybrania posla " . $radny_data['name'] . ' wartoscia ' . $radny_data['wybranie_data'] . "\n";
+                                $gmina_status = '4';
+                                continue;
                             } else {
                                 $update = true;
                             }
                         }
                         if (isset($radny_data['rezygnacja_data']) && $radny_data['rezygnacja_data'] != $rezygnacja_data) {
                             if ($rezygnacja_data != null) {
-                                throw new Exception("Uwaga: nadpisalibysmy date rezygnacji posla " . $radny_data['name'] . ' wartoscia ' . $radny_data['rezygnacja_data']);
+                                echo "ERR-pomijam: Uwaga: nadpisalibysmy date rezygnacji posla " . $radny_data['name'] . ' wartoscia ' . $radny_data['rezygnacja_data'] . "\n";
+                                $gmina_status = '4';
+                                continue;
                             } else {
                                 $update = true;
                             }
@@ -158,10 +182,23 @@ class PkwUpdater
                 }
             }
 
-            // TODO oznacz wybrano = 0/1
+            $sql = "UPDATE pl_gminy_radni SET wybrany = CASE WHEN wybranie_data IS NOT NULL AND rezygnacja_data IS NULL THEN '1' ELSE '0' END WHERE gmina_id = " . $gmina['id'];
+            echo $sql . "\n";
+            if (!$this->DB->query($sql)) {
+                exit(-1);
+            }
 
-            // przetworzono gmine, 3 = OK
-            $sql = "UPDATE pl_gminy SET updater_pkw_radni_status = 3 WHERE id = " . $gmina['id'];
+            // sprawdz, czy ilosc sie zgadza
+            $db_ilosc = $this->DB->selectValue("SELECT COUNT(*) FROM pl_gminy_radni WHERE wybrany = '1' AND gmina_id = " . $gmina['id']);
+            if ($db_ilosc != $pkw_radni_gminy_count) {
+                echo "ERR: Niepoprawna ilosc radnych (gmina_id=".$gmina['id'].")! Wg. pkw jest ich $pkw_radni_gminy_count, wg. naszej bazy $db_ilosc\n";
+                echo "     Porownaj: SELECT g.nazwa, o.nr_okregu, r.nazwa_rev, r.* FROM epf.pl_gminy_radni r INNER JOIN pl_gminy g ON (r.gmina_id = g.id) INNER JOIN epf.pkw_okregi o ON (r.okreg_id = o.id) INNER JOIN epf.pkw_komitety k ON (r.komitet_id = k.id) WHERE gmina_id = ".$gmina['id']." AND wybrany = '1' ORDER BY o.nr_okregu, nazwisko;\n";
+                echo "     Porownaj: ".$ret['url']."\n";
+                $gmina_status = '4';
+            }
+
+            // przetworzono gmine, 3 = OK, 4 - alert sprawdz
+            $sql = "UPDATE pl_gminy SET updater_pkw_radni_status = ". $this->quote($gmina_status).", updater_pkw_radni_last_success = NOW() WHERE id = " . $gmina['id'];
             echo $sql . "\n";
             if (!$this->DB->query($sql)) {
                 exit(-1);
