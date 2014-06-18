@@ -24,6 +24,8 @@
       
       $data = parent::query($q);
       if( $data===false ) {
+          echo "MYSQL ERROR: " . $this->error . "\n";
+          return false;
         // error
         
         $error = (string) $this->error;
@@ -227,7 +229,7 @@
       
       
       $q = "INSERT IGNORE INTO `$table` (`".implode("`, `", $keys)."`) VALUES (".implode(", ", $values).")";
-      $this->query($q);
+      parent::query($q);
       // echo $q; 
       return $this->affected_rows==1;
     }
