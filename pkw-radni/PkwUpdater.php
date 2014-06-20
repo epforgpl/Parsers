@@ -76,11 +76,12 @@ class PkwUpdater
                 $ret = $parser->parse_gmina_teryt($gmina['teryt']);
 
             } catch(Exception $ex) {
-                echo "ERR: Parser err: " . $ex->getMessage() . "\n";
+                echo "ERR(5): Parser err: " . $ex->getMessage() . "\n";
                 $gmina_status = '5';
             }
 
             if ($gmina_status == '3') {
+                try {
 	        echo "Updating " . $ret['name'] . "\n";
 
             $rada = &array_find($ret['sections'], function($s) {return strpos($s['type'], 'rada') === 0; });
@@ -109,7 +110,7 @@ class PkwUpdater
                         // doszedl w uzupelniajacych najprawdopodobniej
                         $komitet_id = $this->DB->selectValue("SELECT id FROM pkw_komitety WHERE pkw_skrot_nazwy = " . $this->quote($radny_data['komitet']));
                         if ($komitet_id === false || $komitet_id === null) {
-                            echo "ERR: Nie znaleziono komitetu pkw_komitety.skrot_nazwy = " . $radny_data['komitet'] . ". Wstawiam dummy (do uzupelnienia pozniej przez wybory_uzupelniajace_link)\n";
+                            echo "ERR(4): Nie znaleziono komitetu pkw_komitety.skrot_nazwy = " . $radny_data['komitet'] . ". Wstawiam dummy (do uzupelnienia pozniej przez wybory_uzupelniajace_link)\n";
                             $sql = "INSERT INTO pkw_komitety (skrot_nazwy) VALUES (".$this->quote($radny_data['komitet']).");";
                             $gmina_status = '4';
 
@@ -154,7 +155,7 @@ class PkwUpdater
                         $update = false;
                         if ($radny_data['wybranie_data'] != $wybranie_data) {
                             if ($wybranie_data != null) {
-                                echo "ERR-pomijam: Uwaga: nadpisalibysmy date wybrania posla " . $radny_data['name'] . ' wartoscia ' . $radny_data['wybranie_data'] . "\n";
+                                echo "ERR(4)-pomijam: Uwaga: nadpisalibysmy date wybrania posla " . $radny_data['name'] . ' wartoscia ' . $radny_data['wybranie_data'] . "\n";
                                 $gmina_status = '4';
                                 continue;
                             } else {
@@ -163,7 +164,7 @@ class PkwUpdater
                         }
                         if (isset($radny_data['rezygnacja_data']) && $radny_data['rezygnacja_data'] != $rezygnacja_data) {
                             if ($rezygnacja_data != null) {
-                                echo "ERR-pomijam: Uwaga: nadpisalibysmy date rezygnacji posla " . $radny_data['name'] . ' wartoscia ' . $radny_data['rezygnacja_data'] . "\n";
+                                echo "ERR(4)-pomijam: Uwaga: nadpisalibysmy date rezygnacji posla " . $radny_data['name'] . ' wartoscia ' . $radny_data['rezygnacja_data'] . "\n";
                                 $gmina_status = '4';
                                 continue;
                             } else {
@@ -198,12 +199,16 @@ class PkwUpdater
             // sprawdz, czy ilosc sie zgadza
             $db_ilosc = $this->DB->selectValue("SELECT COUNT(*) FROM pl_gminy_radni WHERE wybrany = '1' AND gmina_id = " . $gmina['id']);
             if ($db_ilosc != $pkw_radni_gminy_count) {
-                echo "ERR: Niepoprawna ilosc radnych (gmina_id=".$gmina['id'].")! Wg. pkw jest ich $pkw_radni_gminy_count, wg. naszej bazy $db_ilosc\n";
+                echo "ERR(4): Niepoprawna ilosc radnych (gmina_id=".$gmina['id'].")! Wg. pkw jest ich $pkw_radni_gminy_count, wg. naszej bazy $db_ilosc\n";
                 echo "     Porownaj: SELECT g.nazwa, o.nr_okregu, r.nazwa_rev, r.* FROM epf.pl_gminy_radni r INNER JOIN pl_gminy g ON (r.gmina_id = g.id) INNER JOIN epf.pkw_okregi o ON (r.okreg_id = o.id) INNER JOIN epf.pkw_komitety k ON (r.komitet_id = k.id) WHERE gmina_id = ".$gmina['id']." AND wybrany = '1' ORDER BY o.nr_okregu, nazwisko;\n";
                 echo "     Porownaj: ".$ret['url']."\n";
                 $gmina_status = '4';
             }
                 // koniec przetwarzania sparsowanych tresci
+                } catch(Exception $ex) {
+                        echo "ERR(5): Exception occured: " . $ex->getMessage() . "\n";
+                        $gmina_status = '5';
+                    }
             }
 
             // przetworzono gmine, 3 = OK, 4 - alert sprawdz
