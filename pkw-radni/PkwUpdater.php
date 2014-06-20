@@ -114,15 +114,13 @@ class PkwUpdater
                                 // doszedl w uzupelniajacych najprawdopodobniej
                                 $komitet_id = $this->DB->selectValue("SELECT id FROM pkw_komitety WHERE pkw_skrot_nazwy = " . $this->quote($radny_data['komitet']));
                                 if ($komitet_id === false || $komitet_id === null) {
-                                    echo "WARNING(6): Nie znaleziono komitetu pkw_komitety.skrot_nazwy = " . $radny_data['komitet'] . ". Wstawiam dummy (do uzupelnienia pozniej przez wybory_uzupelniajace_link)\n";
-                                    $sql = "INSERT INTO pkw_komitety (skrot_nazwy) VALUES (" . $this->quote($radny_data['komitet']) . ");";
-
-                                    if ($gmina_status == '3')
-                                        $gmina_status = '6';
+                                    echo "ERR(4): Nie znaleziono komitetu pkw_komitety.pkw_skrot_nazwy = " . $radny_data['komitet'] . ". Wstawiam dummy (do uzupelnienia pozniej przez wybory_uzupelniajace_link)\n";
+                                    $sql = "INSERT INTO pkw_komitety (pkw_skrot_nazwy) VALUES (" . $this->quote($radny_data['komitet']) . ");";
+                                    $gmina_status = '4';
 
                                     echo $sql . "\n";
                                     if (!$this->DB->query($sql)) {
-                                        exit(-2);
+                                        throw new Exception("SQL Error on '" . $sql ."' - " . $this->DB->error);
                                     }
                                     $komitet_id = $this->DB->insert_id;
                                 }
@@ -150,7 +148,7 @@ class PkwUpdater
 
                                 echo "$sql\n";
                                 if (!$this->DB->query($sql)) {
-                                    exit(-2);
+                                    throw new Exception("SQL Error on '" . $sql ."' - " . $this->DB->error);
                                 }
 
                             } else {
@@ -189,7 +187,7 @@ class PkwUpdater
 
                                     echo $sql . "\n";
                                     if (!$this->DB->query($sql)) {
-                                        exit(-2);
+                                        throw new Exception("SQL Error on '" . $sql ."' - " . $this->DB->error);
                                     }
                                 }
                             }
@@ -205,9 +203,9 @@ class PkwUpdater
                     // sprawdz, czy ilosc sie zgadza
                     $db_ilosc = $this->DB->selectValue("SELECT COUNT(*) FROM pl_gminy_radni WHERE wybrany = '1' AND gmina_id = " . $gmina['id']);
                     if ($db_ilosc != $pkw_radni_gminy_count) {
-                        echo "ERR(4): Niepoprawna ilosc radnych (gmina_id=" . $gmina['id'] . ")! Wg. pkw jest ich $pkw_radni_gminy_count, wg. naszej bazy $db_ilosc\n";
-                        echo "     Porownaj: SELECT g.nazwa, o.nr_okregu, r.nazwa_rev, r.* FROM epf.pl_gminy_radni r INNER JOIN pl_gminy g ON (r.gmina_id = g.id) INNER JOIN epf.pkw_okregi o ON (r.okreg_id = o.id) INNER JOIN epf.pkw_komitety k ON (r.komitet_id = k.id) WHERE gmina_id = " . $gmina['id'] . " AND wybrany = '1' ORDER BY o.nr_okregu, nazwisko;\n";
-                        echo "     Porownaj: " . $ret['url'] . "\n";
+                        echo "ERR(4): Niepoprawna ilosc radnych (gmina_id=" . $gmina['id'] . ")! Wg. pkw jest ich $pkw_radni_gminy_count, wg. naszej bazy $db_ilosc. ";
+                        echo "Porownaj: SELECT g.nazwa, o.nr_okregu, r.nazwa_rev, r.* FROM epf.pl_gminy_radni r INNER JOIN pl_gminy g ON (r.gmina_id = g.id) INNER JOIN epf.pkw_okregi o ON (r.okreg_id = o.id) INNER JOIN epf.pkw_komitety k ON (r.komitet_id = k.id) WHERE gmina_id = " . $gmina['id'] . " AND wybrany = '1' ORDER BY o.nr_okregu, nazwisko;";
+                        echo " <<>> " . $ret['url'] . "\n";
                         $gmina_status = '4';
                     }
 
