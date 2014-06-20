@@ -114,9 +114,11 @@ class PkwUpdater
                                 // doszedl w uzupelniajacych najprawdopodobniej
                                 $komitet_id = $this->DB->selectValue("SELECT id FROM pkw_komitety WHERE pkw_skrot_nazwy = " . $this->quote($radny_data['komitet']));
                                 if ($komitet_id === false || $komitet_id === null) {
-                                    echo "ERR(4): Nie znaleziono komitetu pkw_komitety.skrot_nazwy = " . $radny_data['komitet'] . ". Wstawiam dummy (do uzupelnienia pozniej przez wybory_uzupelniajace_link)\n";
+                                    echo "WARNING(6): Nie znaleziono komitetu pkw_komitety.skrot_nazwy = " . $radny_data['komitet'] . ". Wstawiam dummy (do uzupelnienia pozniej przez wybory_uzupelniajace_link)\n";
                                     $sql = "INSERT INTO pkw_komitety (skrot_nazwy) VALUES (" . $this->quote($radny_data['komitet']) . ");";
-                                    $gmina_status = '4';
+
+                                    if ($gmina_status == '3')
+                                        $gmina_status = '6';
 
                                     echo $sql . "\n";
                                     if (!$this->DB->query($sql)) {
